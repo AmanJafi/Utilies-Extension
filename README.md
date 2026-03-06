@@ -1,10 +1,10 @@
-# 🌙 Nightfall – Dark Mode for Safari & Chrome
+# <img src="icons/icon-48.png" width="32" height="32" valign="middle"> Nightfall – Dark Mode for Safari & Chrome
 
 A professional, high-performance dark mode extension designed for power users. Nightfall provides a beautiful dark aesthetic for any website, paired with Neovim-style keyboard navigation and a persistent, automated clipboard.
 
 ---
 
-## ✨ Features
+## <img src="icons/icon-48.png" width="24" height="24" valign="middle"> Features
 
 ### 🏢 Intelligent Dark Mode
 - **Global & Per-Site Control**: Toggle dark mode globally or customize it for specific domains.
@@ -75,4 +75,4 @@ Nightfall uses a **Pure Black (#000000)** square icon with a **Solid White Cresc
 
 ---
 
-*Enjoy the dark side.* 🌙
+*Enjoy the dark side.* <img src="icons/icon-48.png" width="16" height="16" valign="middle">
