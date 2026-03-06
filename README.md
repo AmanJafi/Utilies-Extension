@@ -6,18 +6,18 @@ A professional, high-performance dark mode extension designed for power users. N
 
 ## <img src="icons/icon-48.png" width="24" height="24" valign="middle"> Features
 
-### 🏢 Intelligent Dark Mode
+### <img src="icons/icon-48.png" width="20" height="20" valign="middle"> Intelligent Dark Mode
 - **Global & Per-Site Control**: Toggle dark mode globally or customize it for specific domains.
 - **Element Picker**: Precision control—selectively toggle dark mode for any element on a page if it was missed by the automatic engine.
 - **Premium Aesthetics**: A custom-designed, sleek dark UI with a professional crescent moon logo.
 
-### ⌨️ Vim Navigation
+### <img src="icons/icon-48.png" width="20" height="20" valign="middle"> Vim Navigation
 - **Modal Editing**: Supports **Normal** and **Insert** modes. Standard typing works in Insert mode; powerful navigation works in Normal mode.
 - **Flexible Scrolling**: Use `h`, `j`, `k`, `l` for precision scrolling and `gg`/`G` for top/bottom navigation.
 - **Page Controls**: `dd` for Page Down and `u` for Page Up by default.
 - **Fully Customizable**: Add, remove, or remap any keybind to any action via the **Preferences** page.
 
-### 📋 Persistent Clipboard
+### <img src="icons/icon-48.png" width="20" height="20" valign="middle"> Persistent Clipboard
 - **Auto-Capture**: Copies any selected text or images automatically to your local extension storage.
 - **Context Menu Integration**: Right-click any image and select **"Save Image to Nightfall Clipboard"** to bypass CORS and save it permanently.
 - **Image Support**: Stores full data-URLs for images, ensuring they persist even after sessions end.
@@ -25,7 +25,7 @@ A professional, high-performance dark mode extension designed for power users. N
 
 ---
 
-## 🚀 Installation
+## <img src="icons/icon-48.png" width="24" height="24" valign="middle"> Installation
 
 ### For Safari (macOS)
 1.  Ensure you have **Xcode** installed from the App Store.
@@ -45,7 +45,7 @@ A professional, high-performance dark mode extension designed for power users. N
 
 ---
 
-## 🛠 Usage & Shortcuts
+## <img src="icons/icon-48.png" width="24" height="24" valign="middle"> Usage & Shortcuts
 
 ### Default Normal Mode Keys
 | Key | Action |
@@ -70,7 +70,7 @@ A professional, high-performance dark mode extension designed for power users. N
 
 ---
 
-## 🎨 Icon Aesthetic
+## <img src="icons/icon-48.png" width="24" height="24" valign="middle"> Icon Aesthetic
 Nightfall uses a **Pure Black (#000000)** square icon with a **Solid White Crescent Moon**. No rounded corners, no gradients—just a sharp, minimalist logo that looks stunning in any menu bar.
 
 ---
