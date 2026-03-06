@@ -5,9 +5,11 @@
 
 /* Main dark mode filter – applied to <html> */
 html.nightfall-active {
-  filter: invert(90%) hue-rotate(180deg) !important;
-  background-color: #111 !important;
-  transition: filter 0.4s ease, background-color 0.4s ease;
+  filter: invert(100%) !important;
+  background-color: #000 !important;
+  transition:
+    filter 0.4s ease,
+    background-color 0.4s ease;
 }
 
 /* Re-invert media so images/videos look normal */
@@ -20,7 +22,7 @@ html.nightfall-active [style*="background-image"],
 html.nightfall-active iframe,
 html.nightfall-active object,
 html.nightfall-active embed {
-  filter: invert(100%) hue-rotate(180deg) !important;
+  filter: invert(100%) !important;
 }
 
 /* Fix common background-image elements */
@@ -35,7 +37,7 @@ html.nightfall-active [class*="hero"],
 html.nightfall-active [class*="banner"],
 html.nightfall-active [class*="profile-pic"],
 html.nightfall-active [class*="carousel"] {
-  filter: invert(100%) hue-rotate(180deg) !important;
+  filter: invert(100%) !important;
 }
 
 /* Elements user has chosen to make dark (custom rules) */
@@ -48,7 +50,13 @@ html.nightfall-active .nightfall-force-dark {
 
 /* Elements user wants kept white / original */
 html.nightfall-active .nightfall-force-light {
-  filter: invert(100%) hue-rotate(180deg) !important;
+  filter: invert(100%) !important;
+}
+
+/* Fix link and accent colors that get flipped to warm tones */
+html.nightfall-active a:not(.nf-rule-selector),
+html.nightfall-active button:not(.nf-tab-btn):not(.nf-cb-btn) {
+  filter: hue-rotate(180deg) brightness(1.2) !important;
 }
 
 /* Smooth transitions for everything */
