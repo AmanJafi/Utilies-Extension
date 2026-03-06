@@ -53,10 +53,19 @@ html.nightfall-active .nightfall-force-light {
   filter: invert(100%) !important;
 }
 
-/* Fix link and accent colors that get flipped to warm tones */
+/* Fix link and accent colors that get flipped to warm tones by inversion */
+/* We use hue-shift only on non-image colored elements if necessary, but keep it minimal to avoid tinting */
 html.nightfall-active a:not(.nf-rule-selector),
 html.nightfall-active button:not(.nf-tab-btn):not(.nf-cb-btn) {
-  filter: hue-rotate(180deg) brightness(1.2) !important;
+  filter: brightness(1.1) !important;
+}
+
+/* Specific fix for images inside links or containers that might have inherited filters */
+html.nightfall-active a img,
+html.nightfall-active a [class*="logo"],
+html.nightfall-active a [class*="icon"] {
+  filter: invert(100%) !important;
+  /* Ensure they are double inverted back to original */
 }
 
 /* Smooth transitions for everything */
