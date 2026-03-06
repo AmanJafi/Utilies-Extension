@@ -1,0 +1,107 @@
+/* ============================================================
+   Nightfall – Element Selector / Picker Mode Styles
+   ============================================================ */
+
+/* Overlay when selector mode is active */
+.nightfall-selector-active {
+  cursor: crosshair !important;
+}
+
+/* Highlight hovered elements */
+.nightfall-selector-hover {
+  outline: 3px solid #7c3aed !important;
+  outline-offset: 2px !important;
+  background-color: rgba(124, 58, 237, 0.08) !important;
+  cursor: crosshair !important;
+  position: relative;
+}
+
+.nightfall-selector-hover::after {
+  content: attr(data-nightfall-tag);
+  position: absolute;
+  top: -28px;
+  left: 0;
+  background: linear-gradient(135deg, #7c3aed, #a855f7);
+  color: white;
+  font-size: 11px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  padding: 3px 10px;
+  border-radius: 6px;
+  z-index: 2147483647;
+  pointer-events: none;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.3);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+/* Selected elements indicator */
+.nightfall-selected-element {
+  outline: 2px dashed #a855f7 !important;
+  outline-offset: 1px !important;
+}
+
+/* Floating action tooltip */
+.nightfall-selector-tooltip {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #1a1a2e, #2d1b69);
+  color: #e0e0ff;
+  padding: 14px 28px;
+  border-radius: 16px;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 2147483647;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(124, 58, 237, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  animation: nightfall-tooltip-enter 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: auto;
+}
+
+.nightfall-selector-tooltip kbd {
+  background: rgba(124, 58, 237, 0.25);
+  border: 1px solid rgba(124, 58, 237, 0.4);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c4b5fd;
+}
+
+.nightfall-selector-tooltip .nightfall-tooltip-close {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #e0e0ff;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.nightfall-selector-tooltip .nightfall-tooltip-close:hover {
+  background: rgba(124, 58, 237, 0.4);
+  border-color: rgba(124, 58, 237, 0.5);
+}
+
+@keyframes nightfall-tooltip-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}

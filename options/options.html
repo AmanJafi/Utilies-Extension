@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Nightfall Settings</title>
+    <link rel="stylesheet" href="options.css" />
+  </head>
+
+  <body>
+    <div class="container">
+      <header>
+        <img src="../icons/icon-48.png" alt="Nightfall Logo" class="logo" />
+        <h1>Nightfall Preferences</h1>
+        <p>Configure extension settings and navigation keybindings.</p>
+      </header>
+
+      <main>
+        <section class="settings-card">
+          <div class="card-header">
+            <h2>Modal Navigation</h2>
+            <label class="toggle">
+              <input type="checkbox" id="modes-enabled" />
+              <span class="slider"></span>
+            </label>
+          </div>
+          <p class="description">
+            Enable Neovim-style modal editing with Normal, Insert, and Visual
+            modes. Press <kbd>i</kbd> to enter Insert, <kbd>Esc</kbd> for
+            Normal.
+          </p>
+
+          <div class="keybinds-section" id="keybinds-container">
+            <!-- Dynamic Keybind Rows -->
+          </div>
+
+          <div class="actions-row">
+            <button id="add-keybind-btn" class="btn btn-secondary btn-sm">
+              + Add Keybind
+            </button>
+          </div>
+
+          <div class="actions">
+            <button id="reset-btn" class="btn btn-secondary">
+              Reset to Defaults
+            </button>
+            <button id="save-btn" class="btn btn-primary">Save Settings</button>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Need storage to be defined somewhere accessible or import logic -->
+    <script src="../content/storage.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

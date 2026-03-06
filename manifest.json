@@ -1,0 +1,54 @@
+{
+  "manifest_version": 3,
+  "name": "Nightfall – Dark Mode for Safari",
+  "version": "1.0.0",
+  "description": "A beautiful, toggleable dark mode for Safari with element-level customization.",
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "48": "icons/icon-48.png",
+      "96": "icons/icon-96.png"
+    }
+  },
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "clipboardRead",
+    "clipboardWrite",
+    "contextMenus"
+  ],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "css": ["content/darkmode.css", "content/selector.css"],
+      "js": [
+        "content/storage.js",
+        "content/modes.js",
+        "content/keymap.js",
+        "content/darkmode.js",
+        "content/content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["content/selector.css"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
