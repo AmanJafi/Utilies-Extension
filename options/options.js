@@ -138,10 +138,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       keybindsContainer.appendChild(row);
     });
 
-    // Setup listeners for key inputs
+    // Key recorder: captures single keys OR modifier combos
     document.querySelectorAll(".key-input").forEach((input) => {
       input.addEventListener("keydown", (e) => {
         e.preventDefault();
+        e.stopPropagation();
+
         if (e.key === "Tab") return;
 
         if (e.key === "Backspace" || e.key === "Delete") {
@@ -150,19 +152,26 @@ document.addEventListener("DOMContentLoaded", async () => {
           return;
         }
 
-        if (e.key.length === 1) {
-          // Printable characters
-          if (
-            input.value.length >= 2 ||
-            (input.selectionStart === 0 &&
-              input.selectionEnd === input.value.length)
-          ) {
-            input.value = e.key;
-          } else {
-            input.value += e.key;
-          }
-          updateBindingFromRow(input.dataset.index);
+        // Skip bare modifier keypresses
+        if (["Control", "Alt", "Shift", "Meta"].includes(e.key)) return;
+
+        // Build canonical string e.g. "ctrl+shift+k"
+        const parts = [];
+        if (e.ctrlKey)  parts.push("ctrl");
+        if (e.altKey)   parts.push("alt");
+        if (e.shiftKey && e.key.length > 1) parts.push("shift");
+        parts.push(e.key);
+        const keyStr = parts.join("+");
+
+        // Two-char sequences: if user presses same single char twice, append ("g" -> "gg")
+        const existing = input.value;
+        if (existing.length > 0 && !existing.includes("+") && keyStr === existing) {
+          input.value = existing + existing;
+        } else {
+          input.value = keyStr;
         }
+
+        updateBindingFromRow(input.dataset.index);
       });
       input.addEventListener("click", () => {
         input.select();

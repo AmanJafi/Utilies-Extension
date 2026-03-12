@@ -63,7 +63,7 @@ async function captureAndSaveImage(src, sendResponse = null) {
         // Notify the popup if it's open
         try {
           await browser.runtime.sendMessage({ type: "CLIPBOARD_UPDATED" });
-        } catch (e) {}
+        } catch (e) { }
 
         const res = { success: true };
         if (sendResponse) sendResponse(res);
@@ -179,7 +179,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
             type: "SETTINGS_CHANGED",
             settings: updated,
           });
-        } catch (e) {}
+        } catch (e) { }
       }
 
       sendResponse(updated);
@@ -207,7 +207,7 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  if (message.type === "TOGGLE_SELECTOR_MODE") {
+  if (message.type === "TOGGLE_SELECTOR_MODE" || message.type === "SELECTOR_MODE") {
     browser.tabs
       .query({ active: true, currentWindow: true })
       .then(async (tabs) => {
@@ -217,10 +217,25 @@ browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
               type: "SELECTOR_MODE",
               enabled: message.enabled,
             });
-          } catch (e) {}
+          } catch (e) { }
         }
         sendResponse({ success: true });
       });
+    return true;
+  }
+
+  if (message.type === "HARD_RESET") {
+    browser.storage.local.clear().then(async () => {
+      await browser.storage.local.set({ nightfallSettings: DEFAULT_SETTINGS });
+      // Notify all tabs to reload or reset
+      const tabs = await browser.tabs.query({});
+      for (const tab of tabs) {
+        try {
+          await browser.tabs.sendMessage(tab.id, { type: "HARD_RESET" });
+        } catch (e) { }
+      }
+      sendResponse({ success: true });
+    });
     return true;
   }
 

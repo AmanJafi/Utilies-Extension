@@ -220,9 +220,8 @@
   document.addEventListener(
     "keydown",
     (e) => {
-      // We ignore events natively handled by modifiers, so user can do Cmd+C etc.
-      // (Unless it's a specific mapped chord we might support later, but for now stick to simple)
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Always let Cmd (Meta) combinations through — those are browser shortcuts (Cmd+R, Cmd+T…)
+      if (e.metaKey) return;
 
       let mode = Modes.getMode();
 
@@ -242,7 +241,7 @@
         const config = Modes.config;
 
         if (config && config.modesEnabled) {
-          const action = Keymap.getAction(e.key, config);
+          const action = Keymap.getAction(e, config);
 
           if (action === "PENDING") {
             e.preventDefault();

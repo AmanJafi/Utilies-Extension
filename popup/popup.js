@@ -22,6 +22,7 @@
   const optionsBtn = document.getElementById("optionsBtn");
   const clipboardList = document.getElementById("clipboardList");
   const clearClipboardBtn = document.getElementById("clearClipboardBtn");
+  const hardResetBtn = document.getElementById("hardResetBtn");
 
   // Tab Elements
   const tabBtns = document.querySelectorAll(".nf-tab-btn");
@@ -178,28 +179,28 @@
         data && data.nightfallKeybinds
           ? data.nightfallKeybinds
           : {
-              modesEnabled: true,
-              keybindings: {
-                scrollDown: "j",
-                scrollUp: "k",
-                scrollLeft: "h",
-                scrollRight: "l",
-                pageDown: "dd",
-                pageUp: "u",
-                scrollTop: "gg",
-                scrollBottom: "G",
-              },
-              enabled: {
-                scrollDown: true,
-                scrollUp: true,
-                scrollLeft: true,
-                scrollRight: true,
-                pageDown: true,
-                pageUp: true,
-                scrollTop: true,
-                scrollBottom: true,
-              },
-            };
+            modesEnabled: true,
+            keybindings: {
+              scrollDown: "j",
+              scrollUp: "k",
+              scrollLeft: "h",
+              scrollRight: "l",
+              pageDown: "dd",
+              pageUp: "u",
+              scrollTop: "gg",
+              scrollBottom: "G",
+            },
+            enabled: {
+              scrollDown: true,
+              scrollUp: true,
+              scrollLeft: true,
+              scrollRight: true,
+              pageDown: true,
+              pageUp: true,
+              scrollTop: true,
+              scrollBottom: true,
+            },
+          };
 
       config.modesEnabled = enabled;
       await browser.storage.local.set({ nightfallKeybinds: config });
@@ -211,7 +212,7 @@
             type: "KEYBINDINGS_CHANGED",
             config: config,
           });
-        } catch (e) {}
+        } catch (e) { }
       }
     } catch (e) {
       console.error("Error saving vim settings:", e);
@@ -232,7 +233,7 @@
     }
 
     await browser.runtime.sendMessage({
-      type: "TOGGLE_SELECTOR_MODE",
+      type: "SELECTOR_MODE",
       enabled: pickerActive,
     });
 
@@ -271,7 +272,7 @@
 
       li.innerHTML = `
         <span class="nf-rule-selector" title="${escapeHtml(rule.selector)}">${escapeHtml(rule.selector)}</span>
-        <span class="nf-rule-mode ${rule.mode}">${rule.mode}</span>
+        <span class="nf-rule-mode ${rule.mode}">${rule.mode === 'light' ? 'Light' : 'Dark'}</span>
         <button class="nf-rule-delete" data-index="${index}" title="Remove rule">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
             <line x1="18" y1="6" x2="6" y2="18"/>
@@ -306,7 +307,7 @@
               await browser.tabs.sendMessage(tab.id, {
                 type: "APPLY_DARK_MODE",
               });
-            } catch (e) {}
+            } catch (e) { }
           }
         },
       );
@@ -333,7 +334,7 @@
     for (const tab of tabs) {
       try {
         await browser.tabs.sendMessage(tab.id, { type: "APPLY_DARK_MODE" });
-      } catch (e) {}
+      } catch (e) { }
     }
   });
 
@@ -515,6 +516,18 @@
   });
 
   // ── Start ───────────────────────────────────────────────
+
+  if (hardResetBtn) {
+    hardResetBtn.addEventListener("click", async () => {
+      const confirmed = confirm(
+        "Are you sure you want to HARD RESET Nightfall? This will clear ALL settings, custom rules, and clipboard items for ALL sites.",
+      );
+      if (confirmed) {
+        await browser.runtime.sendMessage({ type: "HARD_RESET" });
+        window.close();
+      }
+    });
+  }
 
   init();
 })();

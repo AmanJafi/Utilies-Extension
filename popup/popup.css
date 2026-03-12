@@ -393,14 +393,27 @@ body {
 /* ── Footer ────────────────────────────────────────────────── */
 
 .nf-footer {
-  padding: 10px;
-  text-align: center;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   border-top: 1px solid #111;
 }
 
 .nf-footer-text {
   font-size: 10px;
   color: #444;
+}
+
+.nf-reset-all {
+  font-size: 10px;
+  color: #444;
+  opacity: 0.6;
+}
+
+.nf-reset-all:hover {
+  color: #ff4444;
+  opacity: 1;
 }
 
 /* ── Clipboard Tab ─────────────────────────────────────────── */

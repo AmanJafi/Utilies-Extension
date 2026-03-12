@@ -1,107 +1,93 @@
 /* ============================================================
    Nightfall – Core Dark Mode Stylesheet
-   Applied via CSS filter inversion + smart exclusions
+   Dark mode: invert(100%) on <html>
+   Per-element overrides use the nf-el-* classes below
    ============================================================ */
 
-/* Main dark mode filter – applied to <html> */
+/* ── Page-level inversion ────────────────────────────────── */
+
 html.nightfall-active {
-  filter: invert(100%) !important;
+  filter: invert(100%) hue-rotate(180deg) !important;
   background-color: #000 !important;
-  transition:
-    filter 0.4s ease,
-    background-color 0.4s ease;
+  transition: filter 0.35s ease, background-color 0.35s ease;
 }
 
-/* Re-invert media so images/videos look normal */
+/* Re-invert media so images / videos look normal */
 html.nightfall-active img,
 html.nightfall-active video,
 html.nightfall-active picture,
 html.nightfall-active canvas,
 html.nightfall-active svg image,
-html.nightfall-active [style*="background-image"],
 html.nightfall-active iframe,
 html.nightfall-active object,
 html.nightfall-active embed {
-  filter: invert(100%) !important;
+  filter: invert(100%) hue-rotate(180deg) !important;
 }
 
-/* Fix common background-image elements */
+/* Re-invert common image containers */
 html.nightfall-active [class*="avatar"],
 html.nightfall-active [class*="logo"],
-html.nightfall-active [class*="icon"],
 html.nightfall-active [class*="thumbnail"],
 html.nightfall-active [class*="photo"],
-html.nightfall-active [class*="image"],
 html.nightfall-active [class*="cover"],
 html.nightfall-active [class*="hero"],
 html.nightfall-active [class*="banner"],
 html.nightfall-active [class*="profile-pic"],
 html.nightfall-active [class*="carousel"] {
-  filter: invert(100%) !important;
+  filter: invert(100%) hue-rotate(180deg) !important;
 }
 
-/* Elements user has chosen to make dark (custom rules) */
-html.nightfall-active .nightfall-force-dark {
+/* ── Per-element overrides (Element Picker rules) ─────────
+   The page is already inverted once.
+
+   nf-el-light  →  counter-invert the element so it looks
+                   like its original, un-inverted colours.
+
+   nf-el-dark   →  no filter override; the page inversion
+                   already makes it look dark.  We just
+                   ensure no stale filter is applied.
+   ──────────────────────────────────────────────────────── */
+
+html.nightfall-active .nf-el-light {
+  filter: invert(100%) hue-rotate(180deg) !important;
+}
+
+html.nightfall-active .nf-el-dark {
   filter: none !important;
-  background-color: #1a1a2e !important;
-  color: #e0e0e0 !important;
-  border-color: #333 !important;
 }
 
-/* Elements user wants kept white / original */
-html.nightfall-active .nightfall-force-light {
-  filter: invert(100%) !important;
-}
+/* When dark mode is OFF, overrides have zero visual effect */
 
-/* Fix link and accent colors that get flipped to warm tones by inversion */
-/* We use hue-shift only on non-image colored elements if necessary, but keep it minimal to avoid tinting */
-html.nightfall-active a:not(.nf-rule-selector),
-html.nightfall-active button:not(.nf-tab-btn):not(.nf-cb-btn) {
-  filter: brightness(1.1) !important;
-}
+/* ── Inputs / textareas ──────────────────────────────────── */
 
-/* Specific fix for images inside links or containers that might have inherited filters */
-html.nightfall-active a img,
-html.nightfall-active a [class*="logo"],
-html.nightfall-active a [class*="icon"] {
-  filter: invert(100%) !important;
-  /* Ensure they are double inverted back to original */
-}
-
-/* Smooth transitions for everything */
-html.nightfall-active * {
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
-
-/* Fix specific annoying elements */
 html.nightfall-active input,
 html.nightfall-active textarea,
 html.nightfall-active select {
   background-color: rgba(255, 255, 255, 0.05) !important;
-  border-color: #444 !important;
-  color: inherit !important;
+  border-color: #555 !important;
 }
 
 html.nightfall-active input::placeholder,
 html.nightfall-active textarea::placeholder {
-  color: #888 !important;
+  color: #aaa !important;
 }
 
-/* Scrollbar styling in dark mode */
+/* ── Scrollbars ──────────────────────────────────────────── */
+
 html.nightfall-active ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
 }
 
 html.nightfall-active ::-webkit-scrollbar-track {
-  background: #1a1a2e;
+  background: #111;
 }
 
 html.nightfall-active ::-webkit-scrollbar-thumb {
-  background: #3a3a5e;
-  border-radius: 5px;
+  background: #444;
+  border-radius: 4px;
 }
 
 html.nightfall-active ::-webkit-scrollbar-thumb:hover {
-  background: #5a5a7e;
+  background: #666;
 }

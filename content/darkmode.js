@@ -1,6 +1,5 @@
 // ============================================================
-// Nightfall – Content Script (Dark Mode Engine)
-// Handles dark mode application, element selector, and rules
+// Nightfall – Content Script (Dark Mode Engine + Element Picker)
 // ============================================================
 
 (function () {
@@ -8,312 +7,389 @@
 
   const HOSTNAME = window.location.hostname;
   let selectorMode = false;
-  let hoveredElement = null;
-  let tooltipElement = null;
+  let hoveredEl    = null;   // element currently under the cursor in picker mode
+  let toolbar      = null;   // floating toolbar DOM node
+  let observer     = null;
+  let cachedRules  = [];     // [{selector, mode}]  mode = 'light' | 'dark'
 
-  // ── Apply / Remove Dark Mode ──────────────────────────────
+  // ── Helpers ────────────────────────────────────────────────
 
-  function applyDarkMode() {
-    document.documentElement.classList.add('nightfall-active');
-    loadAndApplyElementRules();
+  function isDynamic(str) {
+    if (!str || typeof str !== 'string') return true;
+    if (/\d{5,}/.test(str))              return true;
+    if (str.length > 20 && (str.match(/\d/g) || []).length > 5) return true;
+    return false;
   }
 
-  function removeDarkMode() {
-    document.documentElement.classList.remove('nightfall-active');
-    // Clean up custom element classes
-    document.querySelectorAll('.nightfall-force-dark, .nightfall-force-light').forEach(el => {
-      el.classList.remove('nightfall-force-dark', 'nightfall-force-light');
-    });
-  }
-
-  // ── Element Rules (per-site custom dark elements) ─────────
-
-  async function loadAndApplyElementRules() {
-    try {
-      const rules = await browser.runtime.sendMessage({
-        type: 'GET_ELEMENT_RULES',
-        hostname: HOSTNAME
-      });
-
-      if (rules && rules.length > 0) {
-        rules.forEach(rule => {
-          try {
-            const elements = document.querySelectorAll(rule.selector);
-            elements.forEach(el => {
-              if (rule.mode === 'dark') {
-                el.classList.add('nightfall-force-dark');
-                el.classList.remove('nightfall-force-light');
-              } else if (rule.mode === 'light') {
-                el.classList.add('nightfall-force-light');
-                el.classList.remove('nightfall-force-dark');
-              }
-            });
-          } catch (e) {
-            // Invalid selector, skip
-          }
-        });
-      }
-    } catch (e) {
-      // Extension context might be invalidated
-    }
-  }
-
-  // ── Generate a unique CSS selector for an element ─────────
-
+  // Generate a stable CSS selector for any element
   function generateSelector(element) {
-    if (element.id) {
-      return `#${CSS.escape(element.id)}`;
+    if (element.id && !isDynamic(element.id)) {
+      return '#' + CSS.escape(element.id);
     }
 
     const path = [];
-    let current = element;
+    let cur = element;
 
-    while (current && current !== document.body && current !== document.documentElement) {
-      let selector = current.tagName.toLowerCase();
+    while (cur && cur.nodeType === Node.ELEMENT_NODE
+           && cur !== document.body && cur !== document.documentElement) {
 
-      if (current.id) {
-        selector = `#${CSS.escape(current.id)}`;
-        path.unshift(selector);
+      let seg = cur.tagName.toLowerCase();
+
+      if (cur.id && !isDynamic(cur.id)) {
+        seg = '#' + CSS.escape(cur.id);
+        path.unshift(seg);
         break;
       }
 
-      if (current.className && typeof current.className === 'string') {
-        const classes = current.className
+      if (cur.className && typeof cur.className === 'string') {
+        const classes = cur.className
           .split(/\s+/)
-          .filter(c => c && !c.startsWith('nightfall-'))
+          .filter(c => c && !c.startsWith('nf-') && !c.startsWith('nightfall-') && !isDynamic(c))
           .slice(0, 2);
-        if (classes.length > 0) {
-          selector += '.' + classes.map(c => CSS.escape(c)).join('.');
-        }
+        if (classes.length) seg += '.' + classes.map(c => CSS.escape(c)).join('.');
       }
 
-      // Add nth-child for uniqueness
-      const parent = current.parentElement;
+      // Add nth-of-type for disambiguation
+      const parent = cur.parentElement;
       if (parent) {
-        const siblings = Array.from(parent.children).filter(
-          s => s.tagName === current.tagName
-        );
-        if (siblings.length > 1) {
-          const index = siblings.indexOf(current) + 1;
-          selector += `:nth-of-type(${index})`;
+        const sameTag = Array.from(parent.children).filter(s => s.tagName === cur.tagName);
+        if (sameTag.length > 1) {
+          seg += ':nth-of-type(' + (sameTag.indexOf(cur) + 1) + ')';
         }
       }
 
-      path.unshift(selector);
-      current = current.parentElement;
+      path.unshift(seg);
+      cur = cur.parentElement;
     }
 
     return path.join(' > ');
   }
 
-  // ── Selector Mode (Element Picker) ────────────────────────
+  // ── Apply / Remove Dark Mode ────────────────────────────────
+
+  function applyDarkMode() {
+    document.documentElement.classList.add('nightfall-active');
+    loadAndApplyRules();
+    startObserver();
+  }
+
+  function removeDarkMode() {
+    document.documentElement.classList.remove('nightfall-active');
+    stopObserver();
+    document.querySelectorAll('.nf-el-light, .nf-el-dark').forEach(el => {
+      el.classList.remove('nf-el-light', 'nf-el-dark');
+    });
+  }
+
+  // ── Element Rules ───────────────────────────────────────────
+
+  async function loadAndApplyRules() {
+    try {
+      const response = await browser.runtime.sendMessage({
+        type: 'GET_ELEMENT_RULES',
+        hostname: HOSTNAME
+      });
+      // Migrate old class names if any
+      cachedRules = (response || []).map(r => ({
+        selector: r.selector,
+        mode: r.mode === 'nightfall-force-light' ? 'light'
+             : r.mode === 'nightfall-force-dark'  ? 'dark'
+             : r.mode
+      }));
+      applyRulesToDOM(document);
+    } catch (e) {
+      console.warn('Nightfall: could not load element rules.', e);
+    }
+  }
+
+  function applyRulesToDOM(root) {
+    // Clear existing overrides first
+    root.querySelectorAll('.nf-el-light, .nf-el-dark').forEach(el => {
+      el.classList.remove('nf-el-light', 'nf-el-dark');
+    });
+
+    if (!cachedRules.length) return;
+
+    cachedRules.forEach(rule => {
+      try {
+        root.querySelectorAll(rule.selector).forEach(el => {
+          el.classList.add(rule.mode === 'light' ? 'nf-el-light' : 'nf-el-dark');
+        });
+      } catch (_) { /* invalid selector — skip */ }
+    });
+  }
+
+  async function saveRules() {
+    try {
+      await browser.runtime.sendMessage({
+        type: 'SAVE_ELEMENT_RULES',
+        hostname: HOSTNAME,
+        selectors: cachedRules
+      });
+    } catch (_) { /* extension context gone */ }
+  }
+
+  // ── MutationObserver (re-apply rules on new nodes) ─────────
+
+  function startObserver() {
+    if (observer) return;
+    observer = new MutationObserver(mutations => {
+      if (mutations.some(m => m.addedNodes.length > 0)) {
+        applyRulesToDOM(document);
+      }
+    });
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+  }
+
+  function stopObserver() {
+    if (observer) { observer.disconnect(); observer = null; }
+  }
+
+  // ══════════════════════════════════════════════════════════════
+  // ELEMENT PICKER
+  // ══════════════════════════════════════════════════════════════
+
+  // Cycle:  undefined → 'light' → 'dark' → undefined (rule removed)
+  function nextMode(current) {
+    if (!current)          return 'light';
+    if (current === 'light') return 'dark';
+    return null; // remove rule
+  }
+
+  function currentRuleFor(selector) {
+    const found = cachedRules.find(r => r.selector === selector);
+    return found ? found.mode : null;  // null = no rule
+  }
+
+  // Get human-readable label for the upcoming action
+  function actionLabel(nextM) {
+    if (nextM === 'light')  return 'click → make Light';
+    if (nextM === 'dark')   return 'click → make Dark';
+    return 'click → reset';
+  }
+
+  // Apply the hover outline + preview to hovered element
+  function applyHoverPreview(el) {
+    const sel      = generateSelector(el);
+    const curMode  = currentRuleFor(sel);
+    const nxt      = nextMode(curMode);
+
+    // Tag label (element identifier)
+    let tag = el.tagName.toLowerCase();
+    if (el.id && !isDynamic(el.id)) tag += '#' + el.id;
+    else if (el.className && typeof el.className === 'string') {
+      const cls = el.className.split(/\s+/).filter(c => !c.startsWith('nf-') && !c.startsWith('nightfall-')).slice(0, 2).join('.');
+      if (cls) tag += '.' + cls;
+    }
+
+    el.setAttribute('data-nf-tag',    tag);
+    el.setAttribute('data-nf-action', actionLabel(nxt));
+    el.classList.add('nf-picker-hover');
+
+    // Preview: temporarily show what clicking will do
+    if (nxt === 'light') {
+      el.classList.add('nf-preview-light');
+    } else if (nxt === 'dark') {
+      el.classList.add('nf-preview-dark');
+    }
+    // nxt === null → no extra class; element already looks like its "reset" state
+  }
+
+  // Remove hover outline + preview from element
+  function clearHoverPreview(el) {
+    if (!el) return;
+    el.classList.remove('nf-picker-hover', 'nf-preview-light', 'nf-preview-dark');
+    el.removeAttribute('data-nf-tag');
+    el.removeAttribute('data-nf-action');
+  }
+
+  // ── Picker Event Handlers ───────────────────────────────────
+
+  function onHover(e) {
+    if (!selectorMode) return;
+    const target = e.target;
+
+    // Ignore our own toolbar
+    if (target.closest && target.closest('.nf-selector-bar')) return;
+
+    if (hoveredEl !== target) {
+      clearHoverPreview(hoveredEl);
+      hoveredEl = target;
+      applyHoverPreview(hoveredEl);
+    }
+  }
+
+  function onUnhover(e) {
+    if (!selectorMode) return;
+    if (e.target.closest && e.target.closest('.nf-selector-bar')) return;
+
+    if (e.target === hoveredEl) {
+      clearHoverPreview(hoveredEl);
+      hoveredEl = null;
+    }
+  }
+
+  function onClick(e) {
+    if (!selectorMode) return;
+    if (e.target.closest && e.target.closest('.nf-selector-bar')) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+
+    const el  = e.target;
+    const sel = generateSelector(el);
+    const cur = currentRuleFor(sel);
+    const nxt = nextMode(cur);
+
+    // Remove any existing rule for this selector
+    cachedRules = cachedRules.filter(r => r.selector !== sel);
+
+    // Remove current override classes from all matching elements
+    document.querySelectorAll(sel).forEach(node => {
+      node.classList.remove('nf-el-light', 'nf-el-dark', 'nf-preview-light', 'nf-preview-dark', 'nf-picker-hover');
+      node.removeAttribute('data-nf-tag');
+      node.removeAttribute('data-nf-action');
+    });
+
+    if (nxt !== null) {
+      // Add new rule
+      cachedRules.push({ selector: sel, mode: nxt });
+
+      // Apply immediately so the change is visible
+      document.querySelectorAll(sel).forEach(node => {
+        node.classList.add(nxt === 'light' ? 'nf-el-light' : 'nf-el-dark');
+      });
+    }
+
+    // Save async
+    saveRules();
+
+    // Re-apply hover preview on the same element (next state)
+    hoveredEl = el;
+    applyHoverPreview(el);
+  }
+
+  function onKeydown(e) {
+    if (!selectorMode) return;
+    if (e.key === 'Escape') {
+      clearHoverPreview(hoveredEl);
+      hoveredEl = null;
+      disableSelectorMode();
+      try { browser.runtime.sendMessage({ type: 'SELECTOR_MODE_CHANGED', enabled: false }); } catch (_) {}
+    }
+  }
+
+  // ── Enable / Disable Picker ─────────────────────────────────
 
   function enableSelectorMode() {
     selectorMode = true;
     document.body.classList.add('nightfall-selector-active');
-    document.addEventListener('mouseover', onSelectorHover, true);
-    document.addEventListener('mouseout', onSelectorUnhover, true);
-    document.addEventListener('click', onSelectorClick, true);
-    document.addEventListener('keydown', onSelectorKeydown, true);
-    showSelectorTooltip();
+    document.addEventListener('mouseover',  onHover,   true);
+    document.addEventListener('mouseout',   onUnhover, true);
+    document.addEventListener('click',      onClick,   true);
+    document.addEventListener('keydown',    onKeydown, true);
+    showToolbar();
   }
 
   function disableSelectorMode() {
     selectorMode = false;
     document.body.classList.remove('nightfall-selector-active');
-    document.removeEventListener('mouseover', onSelectorHover, true);
-    document.removeEventListener('mouseout', onSelectorUnhover, true);
-    document.removeEventListener('click', onSelectorClick, true);
-    document.removeEventListener('keydown', onSelectorKeydown, true);
-
-    if (hoveredElement) {
-      hoveredElement.classList.remove('nightfall-selector-hover');
-      hoveredElement.removeAttribute('data-nightfall-tag');
-      hoveredElement = null;
-    }
-    removeSelectorTooltip();
+    document.removeEventListener('mouseover',  onHover,   true);
+    document.removeEventListener('mouseout',   onUnhover, true);
+    document.removeEventListener('click',      onClick,   true);
+    document.removeEventListener('keydown',    onKeydown, true);
+    clearHoverPreview(hoveredEl);
+    hoveredEl = null;
+    removeToolbar();
   }
 
-  function onSelectorHover(e) {
-    if (!selectorMode) return;
-    e.stopPropagation();
+  // ── Floating Toolbar ────────────────────────────────────────
 
-    // Don't highlight the tooltip itself
-    if (e.target.closest('.nightfall-selector-tooltip')) return;
-
-    if (hoveredElement) {
-      hoveredElement.classList.remove('nightfall-selector-hover');
-      hoveredElement.removeAttribute('data-nightfall-tag');
-    }
-
-    hoveredElement = e.target;
-    let tag = e.target.tagName.toLowerCase();
-    if (e.target.className && typeof e.target.className === 'string') {
-      const cls = e.target.className.split(/\s+/).filter(c => !c.startsWith('nightfall-')).slice(0, 2).join('.');
-      if (cls) tag += '.' + cls;
-    }
-    hoveredElement.setAttribute('data-nightfall-tag', tag);
-    hoveredElement.classList.add('nightfall-selector-hover');
-  }
-
-  function onSelectorUnhover(e) {
-    if (!selectorMode) return;
-    if (hoveredElement && e.target === hoveredElement) {
-      hoveredElement.classList.remove('nightfall-selector-hover');
-      hoveredElement.removeAttribute('data-nightfall-tag');
-      hoveredElement = null;
-    }
-  }
-
-  async function onSelectorClick(e) {
-    if (!selectorMode) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-
-    // Don't process clicks on the tooltip
-    if (e.target.closest('.nightfall-selector-tooltip')) return;
-
-    const element = e.target;
-    const selector = generateSelector(element);
-
-    // Determine action: if element already has force-dark, toggle to force-light, etc.
-    let mode = 'dark';
-    if (element.classList.contains('nightfall-force-dark')) {
-      mode = 'light';
-      element.classList.remove('nightfall-force-dark');
-      element.classList.add('nightfall-force-light');
-    } else if (element.classList.contains('nightfall-force-light')) {
-      // Remove all custom rules
-      mode = 'remove';
-      element.classList.remove('nightfall-force-light');
-    } else {
-      element.classList.add('nightfall-force-dark');
-    }
-
-    // Save the rule
-    try {
-      const existingRules = await browser.runtime.sendMessage({
-        type: 'GET_ELEMENT_RULES',
-        hostname: HOSTNAME
-      });
-
-      let rules = existingRules || [];
-
-      // Remove any existing rule for this selector
-      rules = rules.filter(r => r.selector !== selector);
-
-      if (mode !== 'remove') {
-        rules.push({ selector, mode });
-      }
-
-      await browser.runtime.sendMessage({
-        type: 'SAVE_ELEMENT_RULES',
-        hostname: HOSTNAME,
-        selectors: rules
-      });
-    } catch (e) {
-      // Extension context invalidated
-    }
-  }
-
-  function onSelectorKeydown(e) {
-    if (e.key === 'Escape') {
-      disableSelectorMode();
-      // Notify popup
-      try {
-        browser.runtime.sendMessage({ type: 'SELECTOR_MODE_CHANGED', enabled: false });
-      } catch (err) { }
-    }
-  }
-
-  function showSelectorTooltip() {
-    removeSelectorTooltip();
-
-    tooltipElement = document.createElement('div');
-    tooltipElement.className = 'nightfall-selector-tooltip';
-    tooltipElement.innerHTML = `
-      <span>🎯 <strong>Element Picker</strong> — Click elements to toggle dark. <kbd>Esc</kbd> to exit.</span>
-      <button class="nightfall-tooltip-close">Done</button>
+  function showToolbar() {
+    removeToolbar();
+    toolbar = document.createElement('div');
+    toolbar.className = 'nf-selector-bar';
+    toolbar.innerHTML = `
+      <span>Element Picker &mdash; hover to preview, click to apply &nbsp; <kbd>Esc</kbd> to exit</span>
+      <button class="nf-selector-bar-btn" id="nf-done-btn">Done</button>
     `;
-    tooltipElement.querySelector('.nightfall-tooltip-close').addEventListener('click', (e) => {
+    toolbar.querySelector('#nf-done-btn').addEventListener('click', e => {
       e.stopPropagation();
+      clearHoverPreview(hoveredEl);
+      hoveredEl = null;
       disableSelectorMode();
-      try {
-        browser.runtime.sendMessage({ type: 'SELECTOR_MODE_CHANGED', enabled: false });
-      } catch (err) { }
+      try { browser.runtime.sendMessage({ type: 'SELECTOR_MODE_CHANGED', enabled: false }); } catch (_) {}
     });
-
-    document.body.appendChild(tooltipElement);
+    document.body.appendChild(toolbar);
   }
 
-  function removeSelectorTooltip() {
-    if (tooltipElement) {
-      tooltipElement.remove();
-      tooltipElement = null;
-    }
+  function removeToolbar() {
+    if (toolbar) { toolbar.remove(); toolbar = null; }
   }
 
-  // ── Message Listener ──────────────────────────────────────
+  // ── Message Listener ────────────────────────────────────────
 
-  browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'SETTINGS_CHANGED') {
-      const settings = message.settings;
-      const siteEnabled = settings.siteOverrides[HOSTNAME] !== undefined
-        ? settings.siteOverrides[HOSTNAME]
-        : settings.globalEnabled;
-
-      if (siteEnabled) {
-        applyDarkMode();
-      } else {
+  browser.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    switch (msg.type) {
+      case 'SETTINGS_CHANGED': {
+        const s = msg.settings;
+        if (!s) return;
+        const on = s.siteOverrides[HOSTNAME] !== undefined
+          ? s.siteOverrides[HOSTNAME]
+          : s.globalEnabled;
+        on ? applyDarkMode() : removeDarkMode();
+        break;
+      }
+      case 'SELECTOR_MODE':
+        msg.enabled ? enableSelectorMode() : disableSelectorMode();
+        break;
+      case 'APPLY_DARK_MODE':
+        loadAndApplyRules();
+        break;
+      case 'REMOVE_DARK_MODE':
         removeDarkMode();
-      }
-    }
-
-    if (message.type === 'SELECTOR_MODE') {
-      if (message.enabled) {
-        enableSelectorMode();
-      } else {
-        disableSelectorMode();
-      }
-    }
-
-    if (message.type === 'APPLY_DARK_MODE') {
-      applyDarkMode();
-    }
-
-    if (message.type === 'REMOVE_DARK_MODE') {
-      removeDarkMode();
-    }
-
-    if (message.type === 'PING') {
-      sendResponse({ status: 'alive' });
+        break;
+      case 'HARD_RESET':
+        cachedRules = [];
+        removeDarkMode();
+        location.reload();
+        break;
+      case 'PING':
+        sendResponse({ status: 'alive' });
+        break;
     }
   });
 
-  // ── Initialize ────────────────────────────────────────────
+  // Keep rules in sync when popup clears them
+  browser.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.nightfallElementRules) {
+      const all = changes.nightfallElementRules.newValue || {};
+      cachedRules = (all[HOSTNAME] || []).map(r => ({
+        selector: r.selector,
+        mode: r.mode
+      }));
+      applyRulesToDOM(document);
+    }
+  });
+
+  // ── Init ────────────────────────────────────────────────────
 
   async function init() {
     try {
       const settings = await browser.runtime.sendMessage({ type: 'GET_SETTINGS' });
       if (!settings) return;
-
-      const siteEnabled = settings.siteOverrides[HOSTNAME] !== undefined
+      const on = settings.siteOverrides[HOSTNAME] !== undefined
         ? settings.siteOverrides[HOSTNAME]
         : settings.globalEnabled;
-
-      if (siteEnabled) {
-        applyDarkMode();
-      }
-    } catch (e) {
-      // Extension context might not be ready yet
-    }
+      if (on) applyDarkMode();
+    } catch (_) {}
   }
 
-  // Run init when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
     init();
   }
+
 })();
